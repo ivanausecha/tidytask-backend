@@ -3,7 +3,7 @@ import session from "express-session";
 import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
-import passport from "passport";
+//import passport from "passport";
 import "./config/passport.js";
 import { fileURLToPath } from "url";
 import connectDB from "./config/database.js";
@@ -99,8 +99,8 @@ app.use(
 
 // Middleware
 app.use(express.json());
-app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.initialize());
+// app.use(passport.session());
 
 // Routes
 app.use("/api/auth", authRoutes);
