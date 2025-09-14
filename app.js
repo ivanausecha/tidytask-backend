@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import connectDB from "./config/database.js";
 import authRoutes from "./routes/auth.routes.js";
 import taskRoutes from "./routes/tasks.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 // Configurar path para ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -99,12 +100,15 @@ app.use(
 
 // Middleware
 app.use(express.json());
+// Serve static files for uploaded avatars
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // app.use(passport.initialize());
 // app.use(passport.session());
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
   res.send("Task Manager Backend is running...");
