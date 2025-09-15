@@ -21,6 +21,10 @@ dotenv.config();
 // Definir orígenes permitidos para CORS
 let allowedOrigins = [];
 
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+  }
+
 // En producción, usar la URL del frontend definida en .env
 if (process.env.NODE_ENV === "production") {
   allowedOrigins = [process.env.FRONTEND_URL];
