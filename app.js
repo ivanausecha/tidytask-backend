@@ -1,3 +1,11 @@
+/**
+ * @fileoverview TidyTask Backend Application
+ * @description Main Express application server for TidyTask task management system
+ * @version 1.0.0
+ * @author TidyTask Backend Team
+ * @since 2024-01-01
+ */
+
 import express from "express";
 import session from "express-session";
 import dotenv from "dotenv";
@@ -11,14 +19,26 @@ import authRoutes from "./routes/auth.routes.js";
 import taskRoutes from "./routes/tasks.routes.js";
 import userRoutes from "./routes/user.routes.js";
 
-// Configurar path para ES modules
+/**
+ * File path configuration for ES modules
+ * @type {string}
+ */
 const __filename = fileURLToPath(import.meta.url);
+
+/**
+ * Directory path configuration for ES modules
+ * @type {string}
+ */
 const __dirname = path.dirname(__filename);
 
 // Cargar variables de entorno
 dotenv.config();
 
-// Definir orígenes permitidos para CORS
+/**
+ * Allowed CORS origins configuration
+ * @type {string[]}
+ * @description Array of allowed origins for CORS policy
+ */
 let allowedOrigins = [];
 
 if (process.env.FRONTEND_URL) {
@@ -61,8 +81,17 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+/**
+ * Express application instance
+ * @type {express.Application}
+ * @description Main Express application with middleware and route configuration
+ */
 const app = express();
 
+/**
+ * Session middleware configuration
+ * @description Configures Express session with security settings
+ */
 app.use(
   session({
     secret: process.env.SESSION_SECRET || process.env.JWT_SECRET,
@@ -75,7 +104,10 @@ app.use(
   })
 );
 
-// Configuración CORS mejorada
+/**
+ * CORS middleware configuration
+ * @description Configures Cross-Origin Resource Sharing with environment-specific origins
+ */
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -109,19 +141,48 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // app.use(passport.initialize());
 // app.use(passport.session());
 
-// Routes
+/**
+ * API Routes Configuration
+ * @description Mounts all API route handlers with appropriate prefixes
+ */
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/users", userRoutes);
 
+/**
+ * Root endpoint
+ * @route GET /
+ * @description Health check endpoint
+ * @returns {string} Application status message
+ */
 app.get("/", (req, res) => {
   res.send("Task Manager Backend is running...");
 });
 
-// Error handling middleware
+/**
+ * Global error handling middleware
+ * @param {Error} err - Error object
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ * @description Catches and handles all unhandled errors
+ */
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: "Something went wrong!" });
 });
 
+/**
+ * Express Application Export
+ * @exports {express.Application} app - Configured Express application
+ * @description Main application instance ready for server initialization
+ * 
+ * @example
+ * // In index.js:
+ * import app from './app.js';
+ * const PORT = process.env.PORT || 3000;
+ * app.listen(PORT, () => {
+ *   console.log(`Server running on port ${PORT}`);
+ * });
+ */
 export default app;

@@ -7,9 +7,32 @@ import User from '../models/user.model.js';
 // Define validation schema for task creation
 // Ensures all required fields are present and valid
 const createTaskSchema = yup.object().shape({
-  title: yup.string().required(),
-  detail: yup.string(),
-  date: yup.date().required(),
+  title: yup.string().required('Title is required'),
+  detail: yup.string().nullable(),
+  date: yup.date().required('Date is required'),
+  time: yup.string()
+    .nullable()
+    .test('valid-time-format', 'Time must be in HH:MM format (24-hour)', function(value) {
+      // Si no hay valor, es válido (nullable)
+      if (!value || value === null || value === '') return true;
+      
+      // Verificar formato estricto HH:MM
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(value)) {
+        return false;
+      }
+      
+      // Verificar que las horas y minutos sean válidos
+      const [hours, minutes] = value.split(':').map(Number);
+      return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+    })
+    .test('time-with-date', 'Time requires a valid date', function(value) {
+      // Si hay time, debe haber date válida
+      if (value && !this.parent.date) {
+        return false;
+      }
+      return true;
+    }),
   status: yup.string().oneOf(['Por hacer', 'Haciendo', 'Hecho']).default('Por hacer')
 });
 
@@ -17,8 +40,24 @@ const createTaskSchema = yup.object().shape({
 // All fields are optional since it's a partial update
 const updateTaskSchema = yup.object().shape({
   title: yup.string(),
-  detail: yup.string(),
+  detail: yup.string().nullable(),
   date: yup.date(),
+  time: yup.string()
+    .nullable()
+    .test('valid-time-format', 'Time must be in HH:MM format (24-hour)', function(value) {
+      // Si no hay valor, es válido (nullable)
+      if (!value || value === null || value === '') return true;
+      
+      // Verificar formato estricto HH:MM
+      const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (!timeRegex.test(value)) {
+        return false;
+      }
+      
+      // Verificar que las horas y minutos sean válidos
+      const [hours, minutes] = value.split(':').map(Number);
+      return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+    }),
   status: yup.string().oneOf(['Por hacer', 'Haciendo', 'Hecho'])
 });
 
@@ -35,16 +74,23 @@ class TaskController {
    */
   async createTask(req, res) {
     try {
+      // Manual validation to ensure it works
+      console.log('📝 Validating request body:', req.body);
+      
       // Validate request body against schema
-      await createTaskSchema.validate(req.body);
+      await createTaskSchema.validate(req.body, { abortEarly: false });
+      
       const userId = req.user.userId;
-      const { title, detail, date, status } = req.body;
+      const { title, detail, date, time, status } = req.body;
+
+      console.log('✅ Validation passed, creating task with time:', time);
 
       // Create new task in database
       const newTask = new Task({
         title,
         detail,
         date,
+        time: time || null, // Permitir null si no se proporciona
         status: status || 'Por hacer',
         user: userId
       });
@@ -58,10 +104,21 @@ class TaskController {
       });
 
     } catch (error) {
-      if (error.name === 'ValidationError') {
+      console.error('❌ Create task error:', error);
+      
+      if (error.name === 'ValidationError' || error.errors) {
+        // Yup validation error
+        const message = error.errors ? error.errors.join(', ') : error.message;
+        return res.status(400).json({ 
+          message: `Validation failed: ${message}`,
+          errors: error.errors || [error.message]
+        });
+      }
+      
+      if (error.name === 'MongoError' || error.name === 'CastError') {
         return res.status(400).json({ message: error.message });
       }
-      console.error('Create task error:', error);
+      
       res.status(500).json({ message: "Internal server error creating task" });
     }
   }
@@ -125,11 +182,17 @@ class TaskController {
    */
   async updateTask(req, res) {
     try {
+      // Manual validation to ensure it works
+      console.log('📝 Validating update request body:', req.body);
+      
       // Validate update data
-      await updateTaskSchema.validate(req.body);
+      await updateTaskSchema.validate(req.body, { abortEarly: false });
+      
       const userId = req.user.userId;
       const taskId = req.params.id;
       const updateData = req.body;
+
+      console.log('✅ Update validation passed, updating task with time:', updateData.time);
 
       // Find and update task that belongs to the authenticated user
       const updatedTask = await Task.findOneAndUpdate(
@@ -148,10 +211,21 @@ class TaskController {
       });
 
     } catch (error) {
-      if (error.name === 'ValidationError') {
+      console.error('❌ Update task error:', error);
+      
+      if (error.name === 'ValidationError' || error.errors) {
+        // Yup validation error
+        const message = error.errors ? error.errors.join(', ') : error.message;
+        return res.status(400).json({ 
+          message: `Validation failed: ${message}`,
+          errors: error.errors || [error.message]
+        });
+      }
+      
+      if (error.name === 'MongoError' || error.name === 'CastError') {
         return res.status(400).json({ message: error.message });
       }
-      console.error('Update task error:', error);
+      
       res.status(500).json({ message: "Internal server error updating task" });
     }
   }
@@ -188,11 +262,11 @@ class TaskController {
 // Create single instance of controller
 const controller = new TaskController();
 
-// Export controller methods wrapped with authentication and validation middleware
+// Export controller methods wrapped with authentication middleware only
+// Validation is now handled manually inside each method
 export default {
   createTask: [
     requireAuth, // Ensures user is authenticated
-    validateRequest(createTaskSchema), // Validates request body
     (req, res) => controller.createTask(req, res)
   ],
   getTasks: [
@@ -205,7 +279,6 @@ export default {
   ],
   updateTask: [
     requireAuth,
-    validateRequest(updateTaskSchema),
     (req, res) => controller.updateTask(req, res)
   ],
   deleteTask: [
