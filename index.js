@@ -1,15 +1,34 @@
+/**
+ * @fileoverview TidyTask Backend Server Entry Point
+ * @description Main server file that starts the Express application with HTTP server
+ * @version 1.0.0
+ * @author TidyTask Backend Team
+ * @since 2024-01-01
+ */
+
 import app from './app.js';
 import http from 'http';
 
-
+/**
+ * Server port configuration
+ * @type {number}
+ * @description Port number from environment variable or default fallback
+ */
 const PORT = process.env.PORT || 3001;
 
-// Crear servidor HTTP explícito
+/**
+ * HTTP Server instance
+ * @type {http.Server}
+ * @description Creates HTTP server with Express application
+ */
 const server = http.createServer(app);
 
-
-
-// Interceptar todas las respuestas para garantizar encabezados CORS
+/**
+ * CORS Header Interceptor
+ * @description Ensures CORS headers are always present in production responses
+ * @param {http.IncomingMessage} req - HTTP request object
+ * @param {http.ServerResponse} res - HTTP response object
+ */
 server.on('request', (req, res) => {
   const originalEnd = res.end;
   
@@ -28,7 +47,11 @@ server.on('request', (req, res) => {
   };
 });
 
-// Iniciar el servidor
+/**
+ * Start the server
+ * @description Initializes the HTTP server and logs startup information
+ * @listens {number} PORT - Server port number
+ */
 server.listen(PORT, () => {
   console.log(`🚀 Backend server is running on port ${PORT}`);
   console.log(`🔑 Environment: ${process.env.NODE_ENV || 'development'}`);
