@@ -1,6 +1,8 @@
 /**
- * User Profile Controller
- * Handles user profile operations: view, update, delete, avatar upload
+ * @fileoverview User Profile Controller for TidyTask Application
+ * @description Handles user profile operations including view, update, delete, and avatar upload
+ * @author TidyTask Team
+ * @version 1.0.0
  */
 
 import jwt from "jsonwebtoken";
@@ -21,10 +23,17 @@ const __dirname = path.dirname(__filename);
 // Load environment variables from root
 dotenv.config({ path: path.join(__dirname, "..", "..", ".env") });
 
+/**
+ * JWT secret key from environment variables
+ * @type {string}
+ * @description Secret key used for JWT operations
+ */
 const secretKey = process.env.JWT_SECRET;
 
 /**
  * Validation schema for profile update
+ * @type {yup.ObjectSchema}
+ * @description Validates user profile update data
  */
 const updateProfileSchema = yup.object().shape({
   firstName: yup
@@ -51,6 +60,8 @@ const updateProfileSchema = yup.object().shape({
 
 /**
  * Validation schema for password change
+ * @type {yup.ObjectSchema}
+ * @description Validates password change request data
  */
 const changePasswordSchema = yup.object().shape({
   currentPassword: yup.string().required("La contraseña actual es requerida"),
@@ -65,9 +76,17 @@ const changePasswordSchema = yup.object().shape({
 });
 
 /**
- * Multer configuration for avatar uploads
+ * Multer storage configuration for avatar uploads
+ * @type {multer.StorageEngine}
+ * @description Configures file storage location and naming for avatar uploads
  */
 const storage = multer.diskStorage({
+  /**
+   * Destination function for file uploads
+   * @param {Object} req - Express request object
+   * @param {Object} file - Multer file object
+   * @param {Function} cb - Callback function
+   */
   destination: function (req, file, cb) {
     const uploadPath = path.join(__dirname, "..", "uploads", "avatars");
     // Ensure directory exists
@@ -76,6 +95,13 @@ const storage = multer.diskStorage({
     }
     cb(null, uploadPath);
   },
+  /**
+   * Filename function for file uploads
+   * @param {Object} req - Express request object with authenticated user
+   * @param {Object} file - Multer file object
+   * @param {Function} cb - Callback function
+   * @description Generates unique filename: userId-timestamp.extension
+   */
   filename: function (req, file, cb) {
     // Generate unique filename: userId-timestamp.extension
     const uniqueName = `${req.user.userId}-${Date.now()}${path.extname(
@@ -85,6 +111,13 @@ const storage = multer.diskStorage({
   },
 });
 
+/**
+ * File filter for avatar uploads
+ * @param {Object} req - Express request object
+ * @param {Object} file - Multer file object
+ * @param {Function} cb - Callback function
+ * @description Accepts only specific image formats (JPEG, PNG, GIF, WebP)
+ */
 const fileFilter = (req, file, cb) => {
   // Accept only specific image formats
   const allowedMimes = [
@@ -106,6 +139,11 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+/**
+ * Multer upload configuration
+ * @type {multer.Multer}
+ * @description Configures file upload middleware with size limits and file filtering
+ */
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
@@ -116,11 +154,38 @@ const upload = multer({
 
 /**
  * User Profile Controller Class
+ * @class UserProfileController
+ * @description Handles all user profile-related operations including profile management and avatar uploads
  */
 class UserProfileController {
   /**
-   * Get user profile
-   * GET /api/users/me
+   * Get user profile information
+   * @async
+   * @method getProfile
+   * @param {Object} req - Express request object with authenticated user
+   * @param {Object} req.user - Authenticated user data from JWT
+   * @param {string} req.user.userId - User ID from JWT token
+   * @param {Object} res - Express response object
+   * @returns {Promise<Object>} 200: User profile data, 404: User not found, 500: Server error
+   * @description Retrieves the authenticated user's profile information (excluding sensitive data)
+   * 
+   * @example
+   * // GET /api/users/me
+   * // Authorization: Bearer <jwt_token>
+   * // Response:
+   * {
+   *   "success": true,
+   *   "data": {
+   *     "id": "user_id",
+   *     "firstName": "John",
+   *     "lastName": "Doe",
+   *     "age": 25,
+   *     "email": "john@example.com",
+   *     "avatar": "/uploads/avatars/user-123.jpg",
+   *     "createdAt": "2023-01-01T00:00:00.000Z",
+   *     "updatedAt": "2023-01-01T00:00:00.000Z"
+   *   }
+   * }
    */
   async getProfile(req, res) {
     try {
@@ -160,8 +225,29 @@ class UserProfileController {
   }
 
   /**
-   * Update user profile
-   * PUT /api/users/me
+   * Update user profile information
+   * @async
+   * @method updateProfile
+   * @param {Object} req - Express request object
+   * @param {Object} req.user - Authenticated user data from JWT
+   * @param {string} req.user.userId - User ID from JWT token
+   * @param {Object} req.body - Request body containing profile update data
+   * @param {string} req.body.firstName - User's first name
+   * @param {string} req.body.lastName - User's last name
+   * @param {number} req.body.age - User's age (13-120)
+   * @param {string} req.body.email - User's email address
+   * @param {Object} res - Express response object
+   * @returns {Promise<Object>} 200: Profile updated successfully, 409: Email already exists, 404: User not found, 400: Validation error, 500: Server error
+   * @description Updates the authenticated user's profile information with validation
+   * 
+   * @example
+   * // PUT /api/users/me
+   * {
+   *   "firstName": "John",
+   *   "lastName": "Doe",
+   *   "age": 26,
+   *   "email": "john.doe@example.com"
+   * }
    */
   async updateProfile(req, res) {
     try {
@@ -233,7 +319,26 @@ class UserProfileController {
 
   /**
    * Change user password
-   * PUT /api/users/me/password
+   * @async
+   * @method changePassword
+   * @param {Object} req - Express request object
+   * @param {Object} req.user - Authenticated user data from JWT
+   * @param {string} req.user.userId - User ID from JWT token
+   * @param {Object} req.body - Request body containing password change data
+   * @param {string} req.body.currentPassword - User's current password
+   * @param {string} req.body.newPassword - New password (min 6 characters)
+   * @param {string} req.body.confirmPassword - Confirmation of new password
+   * @param {Object} res - Express response object
+   * @returns {Promise<Object>} 200: Password changed successfully, 400: Invalid current password or validation error, 404: User not found, 500: Server error
+   * @description Changes the authenticated user's password after verifying current password
+   * 
+   * @example
+   * // PUT /api/users/me/password
+   * {
+   *   "currentPassword": "oldPassword123",
+   *   "newPassword": "newPassword456",
+   *   "confirmPassword": "newPassword456"
+   * }
    */
   async changePassword(req, res) {
     try {
@@ -293,7 +398,19 @@ class UserProfileController {
 
   /**
    * Delete user account
-   * DELETE /api/users/me
+   * @async
+   * @method deleteAccount
+   * @param {Object} req - Express request object
+   * @param {Object} req.user - Authenticated user data from JWT
+   * @param {string} req.user.userId - User ID from JWT token
+   * @param {Object} res - Express response object
+   * @returns {Promise<Object>} 200: Account deleted successfully, 404: User not found, 500: Server error
+   * @description Permanently deletes the authenticated user's account
+   * @warning This action is irreversible
+   * 
+   * @example
+   * // DELETE /api/users/me
+   * // Authorization: Bearer <jwt_token>
    */
   async deleteAccount(req, res) {
     try {
@@ -321,8 +438,23 @@ class UserProfileController {
   }
 
   /**
-   * Upload user avatar
-   * POST /api/users/me/avatar
+   * Upload user avatar image
+   * @async
+   * @method uploadAvatar
+   * @param {Object} req - Express request object with file upload
+   * @param {Object} req.user - Authenticated user data from JWT
+   * @param {string} req.user.userId - User ID from JWT token
+   * @param {Object} req.file - Multer file object containing uploaded image
+   * @param {Object} res - Express response object
+   * @returns {Promise<Object>} 200: Avatar updated successfully, 400: No file selected, 404: User not found, 500: Server error
+   * @description Uploads and sets a new avatar image for the authenticated user
+   * @note Accepts JPEG, PNG, GIF, WebP formats up to 5MB
+   * @note Automatically deletes previous avatar file
+   * 
+   * @example
+   * // POST /api/users/me/avatar
+   * // Content-Type: multipart/form-data
+   * // Body: FormData with 'avatar' field containing image file
    */
   async uploadAvatar(req, res) {
     try {
@@ -401,24 +533,71 @@ class UserProfileController {
 const controller = new UserProfileController();
 
 /**
- * Export controller methods wrapped with authentication middleware
+ * User Controller Routes Export
+ * @namespace UserController
+ * @description Exported user controller methods with authentication middleware and validation
+ * Each route is pre-configured with required middleware for security and data validation
+ * 
+ * @exports {Object} UserController - Object containing user management routes
+ * @example
+ * // Import in routes file:
+ * import userController from '../controllers/user.controller.js';
+ * 
+ * // Usage in router:
+ * router.get('/me', userController.getProfile);
+ * router.put('/me', userController.updateProfile);
+ * router.put('/me/password', userController.changePassword);
+ * router.delete('/me', userController.deleteAccount);
+ * router.post('/me/avatar', userController.uploadAvatar);
  */
 export default {
+  /**
+   * Get user profile with authentication
+   * @route GET /api/users/me
+   * @middleware requireAuth - JWT authentication required
+   */
   getProfile: [requireAuth, (req, res) => controller.getProfile(req, res)],
+  
+  /**
+   * Update user profile with authentication and validation
+   * @route PUT /api/users/me
+   * @middleware requireAuth - JWT authentication required
+   * @middleware validateRequest - Profile data validation
+   */
   updateProfile: [
     requireAuth,
     validateRequest(updateProfileSchema),
     (req, res) => controller.updateProfile(req, res),
   ],
+  
+  /**
+   * Change user password with authentication and validation
+   * @route PUT /api/users/me/password
+   * @middleware requireAuth - JWT authentication required
+   * @middleware validateRequest - Password validation
+   */
   changePassword: [
     requireAuth,
     validateRequest(changePasswordSchema),
     (req, res) => controller.changePassword(req, res),
   ],
+  
+  /**
+   * Delete user account with authentication
+   * @route DELETE /api/users/me
+   * @middleware requireAuth - JWT authentication required
+   */
   deleteAccount: [
     requireAuth,
     (req, res) => controller.deleteAccount(req, res),
   ],
+  
+  /**
+   * Upload user avatar with authentication and file handling
+   * @route POST /api/users/me/avatar
+   * @middleware requireAuth - JWT authentication required
+   * @middleware upload.single - Multer file upload middleware
+   */
   uploadAvatar: [
     requireAuth,
     upload.single("avatar"),
